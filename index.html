@@ -272,9 +272,10 @@ function vb(r) {
 let ZB = null;
 function ringNodes(V) {
   const nodes = []; const placed = [];
+  const U = V[2] / Math.max(280, Math.min((document.documentElement.clientWidth || 400) - 32, 900)); // 1 px экрана в единицах карты (без vector-effect — в Safari он не всегда срабатывает)
   const okPos = (q, mg) => q[0] > V[0] + V[2] * mg && q[0] < V[0] + V[2] * (1 - mg) && q[1] > V[1] + V[3] * mg && q[1] < V[1] + V[3] * (1 - mg) && !(MREG === '77' && !(RADON && RAD && !PICK) && q[0] < V[0] + V[2] * 0.25 && q[1] < V[1] + V[3] * 0.3) && !placed.some((p) => Math.hypot(p[0] - q[0], p[1] - q[1]) < V[2] * 0.07);
   if (D.RG && D.RG.hw) {
-    Object.entries(D.RG.hw).forEach(([k, d]) => { const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', d); pth.setAttribute('class', 'hw'); pth.setAttribute('vector-effect', 'non-scaling-stroke'); nodes.push(pth); });
+    Object.entries(D.RG.hw).forEach(([k, d]) => { const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', d); pth.setAttribute('class', 'hw'); pth.style.vectorEffect = 'none'; pth.style.strokeWidth = (1 * U) + 'px'; nodes.push(pth); });
     const fs = V[3] * (V[2] > 1.5 ? 0.019 : 0.024);
     Object.entries(D.RG.hwlab || {}).forEach(([k, cs]) => { const q = cs.find((c) => okPos(c, 0.05)); if (!q) return; placed.push(q);
       const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'hwlab'); const w = fs * (k.length * 0.62 + 0.7), h = fs * 1.35;
@@ -282,7 +283,7 @@ function ringNodes(V) {
       const t = document.createElementNS(NS, 'text'); t.setAttribute('x', q[0]); t.setAttribute('y', q[1] + fs * 0.36); t.setAttribute('font-size', fs); t.setAttribute('text-anchor', 'middle'); t.textContent = k;
       g.append(r, t); nodes.push(g); });
   }
-  if (D.RG) { [['ckad', 'ЦКАД'], ['mkad', 'МКАД'], ['ttk', 'ТТК']].forEach(([k, name]) => { const d = D.RG.p[k]; if (!d) return; const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', d); pth.setAttribute('class', 'ring ring-' + k); pth.setAttribute('vector-effect', 'non-scaling-stroke'); nodes.push(pth);
+  if (D.RG) { [['ckad', 'ЦКАД'], ['mkad', 'МКАД'], ['ttk', 'ТТК']].forEach(([k, name]) => { const d = D.RG.p[k]; if (!d) return; const pth = document.createElementNS(NS, 'path'); pth.setAttribute('d', d); pth.setAttribute('class', 'ring ring-' + k); pth.style.vectorEffect = 'none'; pth.style.strokeWidth = ({ mkad: 1.6, ttk: 1.1, ckad: 1.3 }[k] * U) + 'px'; if (k === 'ckad') pth.style.strokeDasharray = (5 * U) + ' ' + (3 * U); nodes.push(pth);
     const a = (D.RG.lab[k] || []).find((q) => okPos(q, 0.06)); if (a) placed.push(a); if (a && !(k === 'ttk' && V[2] > 1.5)) { const t = document.createElementNS(NS, 'text'); t.setAttribute('x', a[0]); t.setAttribute('y', a[1] - V[3] * 0.008); t.setAttribute('font-size', V[3] * (V[2] > 1.5 ? 0.022 : 0.026)); t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', 'ringlab'); t.style.strokeWidth = V[3] * 0.006; t.textContent = name; nodes.push(t); } }); }
   return nodes;
 }
