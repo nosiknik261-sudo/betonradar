@@ -134,6 +134,9 @@ html.lock,html.lock body{overflow:hidden;overscroll-behavior:none}
 .tile b{font-size:14px;letter-spacing:-.005em;font-weight:700;line-height:1.2;overflow-wrap:break-word;hyphens:auto}
 .tile span{font-size:11.5px;color:var(--muted);line-height:1.3}
 @media (max-width:400px){.tiles{grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr) minmax(0,.9fr);gap:6px}.tile{padding:8px 7px}.tile b{font-size:12.5px;letter-spacing:-.01em}.tile span{font-size:10px;letter-spacing:-.01em}}
+.sec{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.sec>h4{margin:0;font-size:14px;font-weight:700}
+.sec .kv{margin-top:0}
 details.fold{border-top:1px solid var(--line);padding-top:10px}
 details.fold>summary{cursor:pointer;font-size:14px;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:32px}
 details.fold>summary::-webkit-details-marker{display:none}
@@ -248,15 +251,15 @@ function soil(l) {
   const whole = /^\s*подземн/i.test(l.a);
   const h = whole ? Math.min(fl || 1, 5) * 3.5 + 1 : ug ? (fl >= 25 ? 9 : 5.5) : 3;
   const r = (v) => v >= 10000 ? Math.round(v / 1000) * 1000 : Math.round(v / 100) * 100;
-  const lo = r(fp * h), hi = r(fp * h * 1.4);
-  return { lo, hi, fp: Math.round(fp), h, ug, fromDar: l.dar > 0, trips: [Math.round(lo / 11), Math.round(hi / 11)] };
+  return { v: r(fp * h * 1.2), fp: Math.round(fp), h: Math.round(h * 1.2 * 10) / 10, ug, fromDar: l.dar > 0 };
 }
 function est(l) {
   if (!l.sq || l.sq < 1500) return null;
   const k = { res: [0.4, 0.6], com: [0.4, 0.6], soc: [0.35, 0.5], park: [0.5, 0.7] }[l.cls];
   if (!k) return null;
   const r = (v) => v >= 10000 ? Math.round(v / 1000) * 1000 : Math.round(v / 100) * 100;
-  return { lo: r(l.sq * k[0]), hi: r(l.sq * k[1]), k };
+  const km = Math.round((k[0] + k[1]) / 2 * 100) / 100;
+  return { v: r(l.sq * km), km };
 }
 // ---------- map
 const NS = 'http://www.w3.org/2000/svg';
@@ -381,7 +384,7 @@ function drawSite() {
 }
 function lItem(l) {
   const it = el('button', 'it'); it.type = 'button'; it.appendChild(el('div', 'a', l.a));
-  const m = el('div', 'm'); if (isNew(l)) m.appendChild(el('span', 'pill new', 'новое')); m.append(el('span', 'pill st' + STG[l.st].c, SN(l.st))); const k = RADON ? kmTo(l) : null; if (k !== null) m.appendChild(el('span', 'km', (k < 10 ? k.toFixed(1).replace('.', ',') : Math.round(k)) + ' км')); m.appendChild(el('span', null, lab(l.ar))); const e = est(l); if (e) m.appendChild(el('span', null, '≈ ' + nf(e.lo) + '–' + nf(e.hi) + ' м³')); it.appendChild(m);
+  const m = el('div', 'm'); if (isNew(l)) m.appendChild(el('span', 'pill new', 'новое')); m.append(el('span', 'pill st' + STG[l.st].c, SN(l.st))); const k = RADON ? kmTo(l) : null; if (k !== null) m.appendChild(el('span', 'km', (k < 10 ? k.toFixed(1).replace('.', ',') : Math.round(k)) + ' км')); m.appendChild(el('span', null, lab(l.ar))); const e = est(l); if (e) m.appendChild(el('span', null, '≈ ' + nf(e.v) + ' м³')); it.appendChild(m);
   const w = el('div', 'w'); if (l.gp) { w.append(document.createTextNode('Генподрядчик: '), el('b', null, l.gp)); if (l.ph) w.append(document.createTextNode(' · '), el('span', 'ph', l.ph.split(/[;,]/)[0].trim())); } else if (l.dev) w.append(document.createTextNode('Застройщик: '), el('b', null, l.dev)); if (!l.ph && l.g != null && D.G[l.g] && (D.G[l.g].proc_email || D.G[l.g].phone)) { w.append(document.createTextNode(' · ' + (D.G[l.g].proc_email || D.G[l.g].phone))); } if (w.childNodes.length) it.appendChild(w);
   it.addEventListener('click', () => lCard(l)); return it;
 }
@@ -397,7 +400,7 @@ function copyBtn(txt, label) {
     try { navigator.clipboard.writeText(txt).then(ok, () => { b.textContent = 'выделите вручную'; }); } catch (err) { b.textContent = 'выделите вручную'; } });
   return b;
 }
-function more(title, open) { const d = document.createElement('details'); d.className = 'fold'; if (open) d.open = true; d.appendChild(el('summary', null, title)); return d; }
+function more(title) { const d = el('section', 'sec'); d.appendChild(el('h4', null, title)); return d; }
 function lCard(l) {
   const sh = openSheet(l.a); sh.querySelector('h3').classList.add('clamp');
   // 1. стадия и срок
@@ -421,7 +424,7 @@ function lCard(l) {
   const e = est(l); const k = RADON ? kmTo(l) : null; const ev0 = (l.ev || [])[0];
   const tiles = el('div', 'tiles'); const tile = (v, cap) => { const t = el('div', 'tile'); t.append(el('b', null, v), el('span', null, cap)); tiles.appendChild(t); };
   const th = (v) => (v / 1000).toLocaleString('ru-RU', { maximumFractionDigits: v < 10000 ? 1 : 0 });
-  if (e) tile(e.hi >= 10000 ? '≈ ' + th(e.lo) + '–' + th(e.hi) + ' тыс' : '≈ ' + nf(e.lo) + '–' + nf(e.hi), 'м³ бетона'); else if (l.sq) tile(nf(l.sq), 'м² площадь'); else tile(l.fl ? l.fl + ' эт.' : '—', l.fl ? 'этажность' : 'объём не оценён');
+  if (e) tile(e.v >= 10000 ? '≈ ' + th(e.v) + ' тыс' : '≈ ' + nf(e.v), 'м³ бетона'); else if (l.sq) tile(nf(l.sq), 'м² площадь'); else tile(l.fl ? l.fl + ' эт.' : '—', l.fl ? 'этажность' : 'объём не оценён');
   if (k !== null) tile((k < 10 ? k.toFixed(1).replace('.', ',') : Math.round(k)) + ' км', 'от вашего завода'); else tile(lab(l.ar) || '—', 'район');
   if (ev0) tile(ev0[0] ? fmtD(ev0[0]).slice(0, 5) : 'сейчас', shortEv(ev0[1])); 
   sh.appendChild(tiles);
@@ -433,14 +436,14 @@ function lCard(l) {
   add('Ввод (план)', l.end); if (l.gi) add('ИНН генподрядчика', l.gi); if (l.di) add('ИНН застройщика', l.di);
   if (l.gsite) add('Сайт генподрядчика', l.gsite); if (l.dsite) add('Сайт застройщика', l.dsite); if (l.dmail) add('Почта застройщика', l.dmail);
   d2.appendChild(dl);
-  if (e) d2.appendChild(el('p', 'note', 'Бетон: ' + nf(l.sq) + ' м²' + (l.sqe ? ' (жилая площадь × 1,35)' : '') + ' × ' + String(e.k[0]).replace('.', ',') + '–' + String(e.k[1]).replace('.', ',') + ' м³/м² — ориентир для монолитного каркаса. Точный объём — в разделе «Конструктивные решения» проекта.'));
-  const g = soil(l); if (g) d2.appendChild(el('p', 'note', 'Грунт: ≈ ' + nf(g.lo) + '–' + nf(g.hi) + ' м³, ' + nf(g.trips[0]) + '–' + nf(g.trips[1]) + ' рейсов самосвала (пятно ' + nf(g.fp) + ' м² × ~' + String(g.h).replace('.', ',') + ' м).'));
+  if (e) d2.appendChild(el('p', 'note', 'Бетон: ' + nf(l.sq) + ' м²' + (l.sqe ? ' (жилая площадь × 1,35)' : '') + ' × ' + String(e.km).replace('.', ',') + ' м³/м² ≈ ' + nf(e.v) + ' м³ — ориентир для монолитного каркаса. Точный объём — в разделе «Конструктивные решения» проекта.'));
+  const g = soil(l); if (g) d2.appendChild(el('p', 'note', 'Котлован: ≈ ' + nf(g.v) + ' м³ (пятно ' + nf(g.fp) + ' м² × глубина ~' + String(g.h).replace('.', ',') + ' м).'));
   if (l.tl) { if (l.cad) d2.appendChild(el('p', 'note', 'Кадастровый номер: ' + l.cad)); const a = el('a', 'lnk', 'Лот и протокол на torgi.gov.ru ↗'); a.href = l.tl; a.target = '_blank'; a.rel = 'noopener'; a.addEventListener('click', (ev) => { ev.preventDefault(); openURL(a.href); }); d2.appendChild(a); }
   if (l.mos) { const a = el('a', 'lnk', 'Карточка на stroi.mos.ru ↗'); a.href = 'https://stroi.mos.ru/construction/' + l.mos; a.target = '_blank'; a.rel = 'noopener'; a.addEventListener('click', (ev) => { ev.preventDefault(); openURL(a.href); }); d2.appendChild(a); }
   sh.appendChild(d2);
   const d3 = more('История · ' + l.ev.length + ' ' + pl(l.ev.length, 'событие', 'события', 'событий'));
   d3.appendChild(el('div', 'eyebrow', 'Источники: ' + l.src.map((s0) => SRCN[s0] || s0).join(', ')));
-  const tl = el('div', 'tl'); l.ev.forEach(([dd, t]) => { const r = el('div'); r.append(el('span', null, dd ? fmtD(dd) : 'сейчас'), el('div', null, t)); tl.appendChild(r); }); d3.appendChild(tl); sh.appendChild(d3);
+  const tl = el('div', 'tl'); l.ev.forEach(([dd, t]) => { const r = el('div'); r.append(el('span', null, dd ? fmtD(dd) : 'сейчас'), el('div', null, t)); tl.appendChild(r); }); d3.appendChild(tl); sh.insertBefore(d3, d2);
   const gb = grpBox(l.g); const sb = supBox([l.gi, l.di], false);
   if (gb || sb) { const d4 = more(gb ? 'Группа компаний и поставщики' : 'Кто поставлял бетон'); if (gb) d4.appendChild(gb); if (sb) d4.appendChild(sb); sh.appendChild(d4); }
   if (l.ph) sh.appendChild(el('p', 'note', 'Телефоны — общие номера организаций из открытых реестров.'));
@@ -503,7 +506,7 @@ function drawTen() { const G = TK === 'gen'; document.getElementById('tprice').h
 // ---------- покупатели
 function buyers() {
   const m = {};
-  leads().filter((l) => l.gp && STG[l.st].g !== 'go').forEach((l) => { const k = l.gi || l.gp; const b = (m[k] = m[k] || { name: l.gp, inn: l.gi, ph: l.ph, vv: l.vv, n: 0, now: 0, v: 0, ar: {}, L: [], K: [] }); b.n++; if (STG[l.st].g === 'now') b.now++; const e = est(l); if (e) b.v += (e.lo + e.hi) / 2; b.ar[l.ar] = 1; b.L.push(l); if (!b.ph && l.ph) b.ph = l.ph; });
+  leads().filter((l) => l.gp && STG[l.st].g !== 'go').forEach((l) => { const k = l.gi || l.gp; const b = (m[k] = m[k] || { name: l.gp, inn: l.gi, ph: l.ph, vv: l.vv, n: 0, now: 0, v: 0, ar: {}, L: [], K: [] }); b.n++; if (STG[l.st].g === 'now') b.now++; const e = est(l); if (e) b.v += e.v; b.ar[l.ar] = 1; b.L.push(l); if (!b.ph && l.ph) b.ph = l.ph; });
   (D.GK || []).filter((g) => g.o === 2 && g.w && inReg(g.ar, g.R)).forEach((g) => { const k = g.wi || g.w; const b = (m[k] = m[k] || { name: g.w, inn: g.wi, ph: g.wph || '', vv: '', n: 0, now: 0, v: 0, ar: {}, L: [], K: [] }); b.K.push(g); if (!b.ph && g.wph) b.ph = g.wph; if (g.ar) b.ar[g.ar] = 1; });
   return Object.values(m).sort((a, b) => (b.now - a.now) || (b.n - a.n) || (b.K.length - a.K.length));
 }
@@ -520,7 +523,7 @@ function bCard(b) {
   add('Телефон', b.ph); add('ИНН', b.inn); add('Уровень ВВ', b.vv ? b.vv + ' (по договорам подряда)' : ''); if (b.n) add('Стройки', nf(b.n) + (b.now ? ', из них бетон сейчас — ' + nf(b.now) : '')); if (b.K.length) add('Госконтракты на стройку', nf(b.K.length) + ' на ' + money(b.K.reduce((a, g) => a + (g.wp || g.n || 0), 0)) + ' с 2025 года'); if (b.v) add('Бетон, ориентир', '≈ ' + nf(Math.round(b.v / 1000) * 1000 || Math.round(b.v / 100) * 100) + ' м³ по объектам с известной площадью'); sh.appendChild(dl);
   if (b.K.length) { const kb = el('div', 'box'); kb.appendChild(el('div', 'eyebrow', 'Выиграл тендеры на стройку')); b.K.slice(0, 10).forEach((g) => { const r = el('div', 'it'); r.style.cssText = 'padding:8px 0'; r.appendChild(el('div', 'a', g.a)); const mm = el('div', 'm'); mm.append(el('span', null, g.c)); if (g.ar) mm.appendChild(el('span', null, lab(g.ar))); mm.appendChild(el('span', 'mono', (g.wp || g.n) ? money(g.wp || g.n) + ' · ' + g.d.slice(0, 7).split('-').reverse().join('.') : g.d)); r.appendChild(mm); if (g.u) { const a = el('a', 'lnk', 'Открыть на ЕИС ↗'); a.href = g.u; a.target = '_blank'; a.rel = 'noopener'; a.addEventListener('click', (e) => { e.preventDefault(); openURL(g.u); }); r.appendChild(a); } kb.appendChild(r); }); sh.appendChild(kb); }
   const bx = el('div', 'box'); bx.appendChild(el('div', 'eyebrow', 'Объекты'));
-  const ob = el('div', 'objs'); b.L.sort((x, y) => STG[x.st].c - STG[y.st].c).slice(0, 15).forEach((l) => { const r = el('button'); r.type = 'button'; const mm = el('div', 'it'); mm.style.cssText = 'padding:0;border:0'; const m = el('div', 'm'); m.append(el('span', 'pill st' + STG[l.st].c, SN(l.st)), el('span', null, lab(l.ar))); const e = est(l); if (e) m.appendChild(el('span', null, '≈ ' + nf(e.lo) + '–' + nf(e.hi) + ' м³')); r.append(el('span', 't', l.a), m); r.addEventListener('click', () => lCard(l)); ob.appendChild(r); }); bx.appendChild(ob); if (b.L.length) sh.appendChild(bx); { const gi = (b.L.find((x) => x.g != null) || {}).g; const gb = grpBox(gi); if (gb) sh.appendChild(gb); } sh.appendChild(supBox([b.inn], true));
+  const ob = el('div', 'objs'); b.L.sort((x, y) => STG[x.st].c - STG[y.st].c).slice(0, 15).forEach((l) => { const r = el('button'); r.type = 'button'; const mm = el('div', 'it'); mm.style.cssText = 'padding:0;border:0'; const m = el('div', 'm'); m.append(el('span', 'pill st' + STG[l.st].c, SN(l.st)), el('span', null, lab(l.ar))); const e = est(l); if (e) m.appendChild(el('span', null, '≈ ' + nf(e.v) + ' м³')); r.append(el('span', 't', l.a), m); r.addEventListener('click', () => lCard(l)); ob.appendChild(r); }); bx.appendChild(ob); if (b.L.length) sh.appendChild(bx); { const gi = (b.L.find((x) => x.g != null) || {}).g; const gb = grpBox(gi); if (gb) sh.appendChild(gb); } sh.appendChild(supBox([b.inn], true));
   if (b.ph) sh.appendChild(el('p', 'note', 'Телефон — общий номер организации из реестра НОСТРОЙ. Снабженца обычно ищут через него или на площадке.'));
 }
 function drawBuy() {
